@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # MySQL Telegram Monitor Bot
 
 Realtime monitoring chatbot for MySQL instances with Telegram integration. Monitor 3 MySQL instances (Local, Docker, AWS RDS), detect slow queries, resource bottlenecks, and receive instant alerts via Telegram.
@@ -410,3 +411,6 @@ For detailed architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
 For setup instructions: [SETUP.md](SETUP.md)  
 For code examples: [IMPLEMENTATION.md](IMPLEMENTATION.md)  
 For AI agent instructions: [.github/copilot-instructions.md](.github/copilot-instructions.md)
+=======
+# agentai-mysql-checking
+>>>>>>> aad3cb96fb01bcc154a162a81ea7106dc20e50d6
