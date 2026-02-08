@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  # MySQL Local Instance (for development)
+  mysql-local:
+    image: mysql:8.0
+    container_name: mysql-local
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_local
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: monitor
+      MYSQL_PASSWORD: monitor_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+      - ./scripts/init-local.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mysql-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL Docker Instance (for testing)
+  mysql-docker:
+    image: mysql:8.0
+    container_name: mysql-docker
+    environment:
+      MYSQL_ROOT_PASSWORD: docker_root_password
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: monitor
+      MYSQL_PASSWORD: monitor_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_docker_data:/var/lib/mysql
+      - ./scripts/init-docker.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mysql-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: PhpMyAdmin for manual database inspection
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: mysql-local
+      PMA_USER: root
+      PMA_PASSWORD: root_password_local
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql-local
+    networks:
+      - mysql-network
+
+volumes:
+  mysql_local_data:
+  mysql_docker_data:
+
+networks:
+  mysql-network:
+    driver: bridge
+# Usage:
+# docker-compose up -d          # Start all services
+# docker-compose ps             # Show running services
+# docker-compose logs -f        # View logs
+# docker-compose down           # Stop all services
+# docker-compose down -v        # Stop and remove volumes (data will be deleted)
