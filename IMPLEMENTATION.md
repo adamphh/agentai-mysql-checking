@@ -831,6 +831,144 @@ startup().catch(err => {
 
 ---
 
+## 8. Telegram Auth Pattern
+
+### File: `src/telegram/auth.js`
+
+```javascript
+const logger = require('../utils/logger');
+
+// Cache authorized users in-memory
+const authenticatedUsers = new Set();
+
+/**
+ * Check if a Telegram user ID is authorized.
+ * Whitelist check against ALLOWED_USER_IDS in .env
+ */
+async function isAuthorized(userId) {
+  if (!userId) return false;
+
+  const allowedIds = (process.env.ALLOWED_USER_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+
+  if (allowedIds.includes(String(userId))) {
+    authenticatedUsers.add(userId);
+    return true;
+  }
+
+  logger.warn(`Unauthorized access attempt from Telegram User ID: ${userId}`);
+  return false;
+}
+
+module.exports = {
+  isAuthorized,
+};
+```
+
+---
+
+## 9. Logger Utility Pattern
+
+### File: `src/utils/logger.js`
+
+```javascript
+const { createLogger, format, transports } = require('winston');
+const path = require('path');
+const fs = require('fs');
+
+const logDir = path.join(__dirname, '../..', 'logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logger = createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: format.combine(
+    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    format.errors({ stack: true }),
+    format.splat(),
+    format.json()
+  ),
+  defaultMeta: { service: 'mysql-monitor' },
+  transports: [
+    new transports.File({ filename: path.join(logDir, 'error.log'), level: 'error' }),
+    new transports.File({ filename: path.join(logDir, 'app.log') }),
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(
+    new transports.Console({
+      format: format.combine(
+        format.colorize(),
+        format.printf(({ timestamp, level, message, stack }) => {
+          return `[${timestamp}] ${level}: ${stack || message}`;
+        })
+      ),
+    })
+  );
+}
+
+module.exports = logger;
+```
+
+---
+
+## 10. Helpers Utility Pattern
+
+### File: `src/utils/helpers.js`
+
+```javascript
+/**
+ * Format milliseconds into human readable uptime string (e.g. "2d 4h 15m")
+ */
+function formatUptime(ms) {
+  if (!ms || ms <= 0) return '0s';
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (parts.length === 0) parts.push(`${totalSeconds % 60}s`);
+
+  return parts.join(' ');
+}
+
+/**
+ * Safe JSON parser with fallback
+ */
+function safeJsonParse(jsonString, fallback = null) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (err) {
+    return fallback;
+  }
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+function truncateText(str, maxLength = 100) {
+  if (!str) return '';
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength) + '...';
+}
+
+module.exports = {
+  formatUptime,
+  safeJsonParse,
+  truncateText,
+};
+```
+
+---
+
 ## Common Errors & Solutions
 
 ### Error: "Cannot read property 'query' of undefined"

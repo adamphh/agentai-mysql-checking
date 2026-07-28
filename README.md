@@ -64,6 +64,7 @@ Send to your bot:
 
 | Document | Purpose |
 |----------|---------|
+| [COMPLETED_STEPS.md](COMPLETED_STEPS.md) | Completion log & quick usage / testing guide |
 | [.github/copilot-instructions.md](.github/copilot-instructions.md) | AI agent instructions - architecture, patterns, conventions |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, components, data flows, error handling |
 | [SETUP.md](SETUP.md) | Installation, configuration, deployment guides |
