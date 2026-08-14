@@ -1,7 +1,7 @@
 /**
  * Standalone Interactive HTML Report Generator with Multi-Tab Navigation.
- * Generates an offline-ready single-file dashboard integrating Overview, Executive Summary,
- * Top Tables Analytics, SQL Remediation, Scoring Methodology, and Raw JSON data.
+ * Generates an offline-ready single-file dashboard integrating Overview, Workload & I/O Telemetry,
+ * Top Tables Analytics, Executive Summary, SQL Remediation, Scoring Methodology, and Raw JSON.
  */
 
 const fs = require('fs');
@@ -31,13 +31,42 @@ function escapeHtml(str) {
  * @returns {string} The written HTML file path.
  */
 function generateHtmlReport(auditResult, outputPath) {
-  const { databaseInfo, auditMetadata, healthScore, allIssues, tableStats = {} } = auditResult;
+  const {
+    databaseInfo,
+    auditMetadata,
+    healthScore,
+    allIssues,
+    tableStats = {},
+    ioTelemetry = {}
+  } = auditResult;
+
   const { score, grade, statusText, color, breakdown, summary } = healthScore;
 
   const topBySize = tableStats.topBySize || [];
   const topByRows = tableStats.topByRows || [];
   const topByFrag = tableStats.topByFragmentation || [];
   const unusedIdxs = tableStats.unusedIndexes || [];
+
+  const wl = ioTelemetry.workload || {
+    statement: { selects: 0, writes: 0, total: 0, readPct: 100, writePct: 0 },
+    row: { rowsRead: 0, rowsWritten: 0, total: 0, readPct: 100, writePct: 0 },
+    profile: 'READ_HEAVY'
+  };
+  const mem = ioTelemetry.memory || {
+    bufferPoolMb: 0,
+    bufferPoolGb: 0,
+    readRequests: 0,
+    diskReads: 0,
+    memoryHitRatio: 100,
+    diskReadRatio: 0,
+    dirtyPagesPct: 0,
+    redoLogWaits: 0
+  };
+  const diag = ioTelemetry.diagnostics || {
+    status: 'HEALTHY',
+    summary: 'Hiệu suất bộ nhớ tối ưu.',
+    recommendation: 'Duy trì cấu hình hiện tại.'
+  };
 
   const criticalIssues = allIssues.filter((i) => i.severity === 'CRITICAL');
   const warningIssues = allIssues.filter((i) => i.severity === 'WARNING');
@@ -134,7 +163,7 @@ function generateHtmlReport(auditResult, outputPath) {
       background: transparent;
       color: var(--text-muted);
       border: none;
-      padding: 10px 18px;
+      padding: 10px 16px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -156,7 +185,7 @@ function generateHtmlReport(auditResult, outputPath) {
     .tab-content.active { display: block; }
 
     /* Grid & Cards */
-    .hero-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-bottom: 24px; }
+    .hero-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; margin-bottom: 20px; }
     @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
     
     .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px; }
@@ -220,6 +249,41 @@ function generateHtmlReport(auditResult, outputPath) {
     .progress-track { width: 100%; height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; }
     .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
 
+    /* Workload & I/O Widget Bar */
+    .telemetry-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) { .telemetry-summary-grid { grid-template-columns: 1fr; } }
+    .telemetry-widget {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .telemetry-widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .split-progress {
+      width: 100%;
+      height: 12px;
+      background: #334155;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+    }
+    .split-fill-left { height: 100%; transition: width 0.3s ease; }
+    .split-fill-right { height: 100%; transition: width 0.3s ease; }
+
     .controls-bar {
       display: flex;
       justify-content: space-between;
@@ -282,11 +346,12 @@ function generateHtmlReport(auditResult, outputPath) {
     .badge.warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
     .badge.info { background: rgba(59, 130, 246, 0.2); color: var(--info); }
     .badge.engine { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
+    .badge.healthy { background: rgba(16, 185, 129, 0.2); color: var(--success); }
     
     .issue-title { font-weight: 600; font-size: 14px; color: #fff; }
     .issue-body {
       padding: 14px 18px 18px;
-      display: block; /* Shown by default for immediate visibility */
+      display: block;
       font-size: 13px;
       color: #cbd5e1;
       border-top: 1px solid rgba(255,255,255,0.06);
@@ -369,6 +434,7 @@ function generateHtmlReport(auditResult, outputPath) {
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab(this, 'tab-overview')">📊 Tổng quan &amp; Vấn đề</button>
+      <button class="tab-btn" onclick="switchTab(this, 'tab-workload-io')">🧠 Tải Đọc/Ghi &amp; I/O</button>
       <button class="tab-btn" onclick="switchTab(this, 'tab-tables')">🗄️ Top Bảng &amp; Lưu trữ</button>
       <button class="tab-btn" onclick="switchTab(this, 'tab-executive')">📋 Báo cáo Sếp (Executive)</button>
       <button class="tab-btn" onclick="switchTab(this, 'tab-sql')">🛠️ Mã lệnh SQL Fix</button>
@@ -418,6 +484,41 @@ function generateHtmlReport(auditResult, outputPath) {
         </div>
       </div>
 
+      <!-- Quick Workload & I/O Summary Bar -->
+      <div class="telemetry-summary-grid">
+        <div class="telemetry-widget" onclick="switchTabByName('tab-workload-io')" style="cursor: pointer;">
+          <div class="telemetry-widget-header">
+            <span>🔄 Tải Đọc / Ghi (Workload Ratio)</span>
+            <strong style="color: var(--primary);">${wl.statement.readPct}% Đọc | ${wl.statement.writePct}% Ghi</strong>
+          </div>
+          <div class="split-progress">
+            <div class="split-fill-left" style="width: ${wl.statement.readPct}%; background: var(--primary);"></div>
+            <div class="split-fill-right" style="width: ${wl.statement.writePct}%; background: var(--warning);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span>SELECT: ${wl.statement.selects.toLocaleString()} lệnh</span>
+            <span>DML Ghi: ${wl.statement.writes.toLocaleString()} lệnh</span>
+          </div>
+        </div>
+
+        <div class="telemetry-widget" onclick="switchTabByName('tab-workload-io')" style="cursor: pointer;">
+          <div class="telemetry-widget-header">
+            <span>⚡ Đọc từ RAM vs Đọc Ổ đĩa (Cache Hit)</span>
+            <strong style="color: ${mem.memoryHitRatio >= 99 ? 'var(--success)' : 'var(--critical)'};">
+              ${mem.memoryHitRatio}% RAM | ${mem.diskReadRatio}% Disk
+            </strong>
+          </div>
+          <div class="split-progress">
+            <div class="split-fill-left" style="width: ${mem.memoryHitRatio}%; background: var(--success);"></div>
+            <div class="split-fill-right" style="width: ${mem.diskReadRatio}%; background: var(--critical);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span>Buffer Pool: ${mem.bufferPoolGb} GB</span>
+            <span>Đọc từ Disk: ${mem.diskReads.toLocaleString()} lần</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Controls bar -->
       <div class="controls-bar">
         <div class="controls">
@@ -451,7 +552,152 @@ function generateHtmlReport(auditResult, outputPath) {
       </div>
     </div>
 
-    <!-- TAB 2: TOP TABLES & STORAGE INSIGHTS -->
+    <!-- TAB 2: WORKLOAD & I/O TELEMETRY (DEEP INSIGHTS) -->
+    <div id="tab-workload-io" class="tab-content">
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="doc-section">
+          <h2>📊 1. Phân Tích Hồ Sơ Tải Đọc / Ghi (Read vs Write Workload Breakdown)</h2>
+          <p style="margin-bottom: 12px;">
+            Nhận diện bản chất luồng công việc của hệ thống (OLTP Read-Heavy vs Write-Heavy) 
+            để định hướng chiến lược mở rộng và đầu tư phần cứng:
+          </p>
+          <table class="data-table">
+            <tr>
+              <th>Cấp độ Phân tích (Level)</th>
+              <th>Tổng lượt Đọc (Read)</th>
+              <th>Tổng lượt Ghi (Write)</th>
+              <th>Tỷ lệ Đọc / Ghi (%)</th>
+              <th>Đặc trưng Tải (Profile)</th>
+            </tr>
+            <tr>
+              <td><strong>Cấp Câu lệnh (Statement Level)</strong></td>
+              <td>${wl.statement.selects.toLocaleString()} SELECT</td>
+              <td>${wl.statement.writes.toLocaleString()} INSERT/UPDATE/DELETE</td>
+              <td>
+                <strong style="color: var(--primary);">${wl.statement.readPct}% Đọc</strong> / 
+                <strong style="color: var(--warning);">${wl.statement.writePct}% Ghi</strong>
+              </td>
+              <td><span class="badge ${wl.profile === 'READ_HEAVY' ? 'info' : 'warning'}">${wl.profile}</span></td>
+            </tr>
+            <tr>
+              <td><strong>Cấp Dòng Dữ liệu (Row Level - InnoDB)</strong></td>
+              <td>${wl.row.rowsRead.toLocaleString()} Rows Read</td>
+              <td>${wl.row.rowsWritten.toLocaleString()} Rows Written</td>
+              <td>
+                <strong style="color: var(--primary);">${wl.row.readPct}% Đọc</strong> / 
+                <strong style="color: var(--warning);">${wl.row.writePct}% Ghi</strong>
+              </td>
+              <td><span class="badge engine">InnoDB Row Engine</span></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="doc-section">
+          <h2>⚡ 2. Hiệu Suất Bộ Nhớ RAM &amp; Tỷ Lệ Đọc Ổ Đĩa (Buffer Pool &amp; Disk I/O)</h2>
+          <table class="data-table">
+            <tr>
+              <th>Chỉ số Telemetry</th><th>Giá trị Đo lường</th><th>Ngưỡng Tiêu chuẩn</th><th>Đánh giá</th>
+            </tr>
+            <tr>
+              <td><strong>Dung lượng InnoDB Buffer Pool (RAM)</strong></td>
+              <td><strong>${mem.bufferPoolGb} GB (${mem.bufferPoolMb} MB)</strong></td>
+              <td>60% - 75% RAM máy chủ</td>
+              <td><span class="badge healthy">Active</span></td>
+            </tr>
+            <tr>
+              <td><strong>Tỷ lệ Đọc từ RAM (Buffer Pool Hit Ratio)</strong></td>
+              <td>
+                <strong style="color: ${mem.memoryHitRatio >= 99 ? 'var(--success)' : 'var(--critical)'};">
+                  ${mem.memoryHitRatio}%
+                </strong>
+              </td>
+              <td>&gt;= 99.0% (Lý tưởng: &gt;= 99.5%)</td>
+              <td>
+                <span class="badge ${mem.memoryHitRatio >= 99 ? 'healthy' : 'critical'}">
+                  ${mem.memoryHitRatio >= 99 ? 'TỐI ƯU (RAM HIT)' : 'NGHẼN DISK I/O'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tỷ lệ Đọc vật lý từ Ổ đĩa (Physical Disk Miss)</strong></td>
+              <td>
+                <strong style="color: ${mem.diskReadRatio <= 1 ? 'var(--success)' : 'var(--critical)'};">
+                  ${mem.diskReadRatio}% (${mem.diskReads.toLocaleString()} lần)
+                </strong>
+              </td>
+              <td>&lt; 1.0% (Lý tưởng: &lt; 0.1%)</td>
+              <td>
+                <span class="badge ${mem.diskReadRatio <= 1 ? 'healthy' : 'critical'}">
+                  ${mem.diskReadRatio <= 1 ? 'Ổn định' : 'Cần tối ưu'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tỷ lệ Trang Bẩn Chờ Ghi (Dirty Pages Ratio)</strong></td>
+              <td><strong>${mem.dirtyPagesPct}%</strong></td>
+              <td>&lt; 70.0%</td>
+              <td>
+                <span class="badge ${mem.dirtyPagesPct <= 70 ? 'healthy' : 'warning'}">
+                  ${mem.dirtyPagesPct <= 70 ? 'Flush Kịp thời' : 'Flush Chậm'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Nghẽn Chờ Ghi Redo Log (Innodb_log_waits)</strong></td>
+              <td><strong>${mem.redoLogWaits} sự kiện chờ</strong></td>
+              <td>0 waits</td>
+              <td>
+                <span class="badge ${mem.redoLogWaits === 0 ? 'healthy' : 'critical'}">
+                  ${mem.redoLogWaits === 0 ? 'Không nghẽn' : 'Bị nghẽn Redo'}
+                </span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="doc-section">
+          <h2>🔍 3. Chẩn Đoán Nguyên Nhân Gốc Rễ &amp; Khuyến Nghị Tối Ưu I/O</h2>
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 14px;
+            border-radius: 8px; border: 1px solid var(--card-border);">
+            <p style="font-size: 14px; margin-bottom: 8px;">
+              <strong>Trạng thái:</strong> 
+              <span class="badge ${diag.status === 'HEALTHY'
+                ? 'healthy' : diag.status === 'WARNING' ? 'warning' : 'critical'}">
+                ${diag.status}
+              </span>
+              <span style="margin-left: 6px; color: #fff;">${escapeHtml(diag.summary)}</span>
+            </p>
+            <p style="color: var(--text-muted); font-size: 13px;">
+              <strong>Khuyến nghị:</strong> ${escapeHtml(diag.recommendation)}
+            </p>
+          </div>
+
+          <h3 style="color: #fff; font-size: 15px; margin-top: 16px; margin-bottom: 8px;">
+            📌 Tại sao Đọc từ Disk lại nguy hiểm và Hướng xử lý:
+          </h3>
+          <ul>
+            <li>
+              <strong>Độ trễ chênh lệch:</strong> Truy xuất RAM chỉ mất ~100ns,
+              trong khi SSD mất ~100µs (chậm hơn 1.000 lần) và HDD mất ~10ms.
+            </li>
+            <li>
+              <strong>Triệt tiêu Full Table Scan:</strong> Quét toàn bộ bảng
+              làm tràn RAM (Cache Pollution), hất văng dữ liệu nóng ra ngoài.
+            </li>
+            <li>
+              <strong>Cân đối Kích thước Buffer Pool:</strong> Hãy tăng
+              <code>innodb_buffer_pool_size</code> lên mức 60% - 75% tổng RAM máy chủ.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: TOP TABLES & STORAGE INSIGHTS -->
     <div id="tab-tables" class="tab-content">
       <div class="card" style="margin-bottom: 20px;">
         <div class="doc-section">
@@ -555,7 +801,7 @@ function generateHtmlReport(auditResult, outputPath) {
       </div>
     </div>
 
-    <!-- TAB 3: EXECUTIVE SUMMARY (FOR BOSS) -->
+    <!-- TAB 4: EXECUTIVE SUMMARY (FOR BOSS) -->
     <div id="tab-executive" class="tab-content">
       <div class="card">
         <div class="doc-section">
@@ -649,7 +895,7 @@ function generateHtmlReport(auditResult, outputPath) {
       </div>
     </div>
 
-    <!-- TAB 4: SQL FIX SCRIPT -->
+    <!-- TAB 5: SQL FIX SCRIPT -->
     <div id="tab-sql" class="tab-content">
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -665,7 +911,7 @@ function generateHtmlReport(auditResult, outputPath) {
       </div>
     </div>
 
-    <!-- TAB 5: SCORING METHODOLOGY -->
+    <!-- TAB 6: SCORING METHODOLOGY -->
     <div id="tab-methodology" class="tab-content">
       <div class="card">
         <div class="doc-section">
@@ -747,7 +993,7 @@ function generateHtmlReport(auditResult, outputPath) {
       </div>
     </div>
 
-    <!-- TAB 6: RAW JSON -->
+    <!-- TAB 7: RAW JSON -->
     <div id="tab-json" class="tab-content">
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -766,6 +1012,20 @@ function generateHtmlReport(auditResult, outputPath) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const activeContent = document.getElementById(tabId);
+      if (activeContent) activeContent.classList.add('active');
+    }
+
+    function switchTabByName(tabId) {
+      const btns = document.querySelectorAll('.tab-btn');
+      const contents = document.querySelectorAll('.tab-content');
+      btns.forEach(b => {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId)) {
+          btns.forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+        }
+      });
+      contents.forEach(c => c.classList.remove('active'));
       const activeContent = document.getElementById(tabId);
       if (activeContent) activeContent.classList.add('active');
     }

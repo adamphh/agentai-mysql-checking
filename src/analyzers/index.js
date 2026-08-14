@@ -56,10 +56,34 @@ async function runFullAudit(queryRunner, capabilities, versionAdapter, options =
     console.warn('⚠️ Query digest analyzer encountered error:', err.message);
   }
 
-  console.log('💾 [4/5] Analyzing InnoDB Memory & I/O Engine...');
+  console.log('💾 [4/5] Analyzing InnoDB Memory, Workload & I/O Engine...');
   let memoryIssues = [];
+  let ioTelemetry = {
+    workload: {
+      statement: { selects: 0, writes: 0, total: 0, readPct: 100, writePct: 0 },
+      row: { rowsRead: 0, rowsWritten: 0, total: 0, readPct: 100, writePct: 0 },
+      profile: 'READ_HEAVY'
+    },
+    memory: {
+      bufferPoolMb: 0,
+      bufferPoolGb: 0,
+      readRequests: 0,
+      diskReads: 0,
+      memoryHitRatio: 100,
+      diskReadRatio: 0,
+      dirtyPagesPct: 0,
+      redoLogWaits: 0
+    },
+    diagnostics: { status: 'HEALTHY', summary: '', recommendation: '' }
+  };
   try {
-    memoryIssues = await analyzeMemoryAndIO(queryRunner, capabilities);
+    const memRes = await analyzeMemoryAndIO(queryRunner, capabilities);
+    if (memRes && memRes.issues) {
+      memoryIssues = memRes.issues;
+      ioTelemetry = memRes.telemetry || ioTelemetry;
+    } else if (Array.isArray(memRes)) {
+      memoryIssues = memRes;
+    }
   } catch (err) {
     console.warn('⚠️ Memory/IO analyzer encountered error:', err.message);
   }
@@ -99,6 +123,7 @@ async function runFullAudit(queryRunner, capabilities, versionAdapter, options =
     },
     healthScore,
     tableStats,
+    ioTelemetry,
     findings: pillarFindings,
     allIssues: [
       ...schemaIssues.map((i) => ({ ...i, pillar: 'schema' })),

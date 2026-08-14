@@ -92,7 +92,10 @@ async function handleSlowQueries(ctx) {
 }
 
 async function handleAlerts(ctx) {
-  return ctx.reply('🚨 **Recent Alerts:** All recent alerts are broadcasted directly to this chat when detected.', { parse_mode: 'Markdown' });
+  return ctx.reply(
+    '🚨 **Recent Alerts:** All recent alerts are broadcasted directly to this chat when detected.',
+    { parse_mode: 'Markdown' }
+  );
 }
 
 async function handleInstances(ctx) {

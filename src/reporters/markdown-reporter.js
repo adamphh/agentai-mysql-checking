@@ -14,7 +14,15 @@ const path = require('path');
  * @returns {string} The written Markdown file path.
  */
 function generateMarkdownReport(auditResult, outputPath) {
-  const { databaseInfo, auditMetadata, healthScore, allIssues, tableStats = {} } = auditResult;
+  const {
+    databaseInfo,
+    auditMetadata,
+    healthScore,
+    allIssues,
+    tableStats = {},
+    ioTelemetry = {}
+  } = auditResult;
+
   const { score, grade, statusText, breakdown, summary } = healthScore;
 
   const topBySize = tableStats.topBySize || [];
@@ -22,6 +30,22 @@ function generateMarkdownReport(auditResult, outputPath) {
   const warningIssues = allIssues.filter((i) => i.severity === 'WARNING');
   const uptimeDays = (databaseInfo.uptimeSeconds / 86400).toFixed(1);
   const pfsStatus = databaseInfo.hasPerformanceSchema ? 'BẬT' : 'TẮT';
+
+  const wl = ioTelemetry.workload || {
+    statement: { selects: 0, writes: 0, total: 0, readPct: 100, writePct: 0 },
+    row: { rowsRead: 0, rowsWritten: 0, total: 0, readPct: 100, writePct: 0 },
+    profile: 'READ_HEAVY'
+  };
+  const mem = ioTelemetry.memory || {
+    bufferPoolMb: 0,
+    bufferPoolGb: 0,
+    readRequests: 0,
+    diskReads: 0,
+    memoryHitRatio: 100,
+    diskReadRatio: 0,
+    dirtyPagesPct: 0,
+    redoLogWaits: 0
+  };
 
   const lines = [
     '# BÁO CÁO ĐÁNH GIÁ HIỆU NĂNG CƠ SỞ DỮ LIỆU (EXECUTIVE SUMMARY)',
@@ -60,7 +84,22 @@ function generateMarkdownReport(auditResult, outputPath) {
     '',
     '---',
     '',
-    '## 2. TOP BẢNG CÓ DUNG LƯỢNG LỚN NHẤT',
+    '## 2. HỒ SƠ TẢI ĐỌC / GHI & HIỆU SUẤT BỘ NHỚ (WORKLOAD & I/O TELEMETRY)',
+    '',
+    '| Chỉ số Đo lường | Giá trị Hiện tại | Đánh giá Chuyên gia |',
+    '| :--- | :--- | :--- |',
+    `| **Tỷ lệ Tải Đọc/Ghi (Statements)** | **${wl.statement.readPct}% Read** / ${wl.statement.writePct}% Write | ` +
+      `Hệ thống thuộc nhóm **${wl.profile}** |`,
+    `| **Tỷ lệ Đọc từ RAM (Hit Ratio)** | **${mem.memoryHitRatio}%** (Buffer Pool: ${mem.bufferPoolGb} GB) | ` +
+      (mem.memoryHitRatio >= 99.0 ? '✅ Tối ưu (RAM Hit)' : '⚠️ Cảnh báo: Xuất hiện nghẽn Disk I/O') + ' |',
+    `| **Tỷ lệ Đọc từ Ổ đĩa (Physical)** | **${mem.diskReadRatio}%** (${mem.diskReads.toLocaleString()} reads) | ` +
+      (mem.diskReadRatio <= 1.0 ? '✅ Ổn định (< 1%)' : '🚨 Cần tăng RAM Buffer Pool') + ' |',
+    `| **Trang bẩn chờ xả (Dirty Pages)** | **${mem.dirtyPagesPct}%** | ` +
+      (mem.dirtyPagesPct <= 70 ? '✅ Xả kịp thời' : '⚠️ Cần tăng innodb_io_capacity') + ' |',
+    '',
+    '---',
+    '',
+    '## 3. TOP BẢNG CÓ DUNG LƯỢNG LỚN NHẤT',
     '',
     '| # | Bảng (Table) | Engine | Số bản ghi (Rows) | Data (MB) | Index (MB) | Tổng dung lượng (MB) |',
     '| :- | :--- | :--- | :- | :- | :- | :- |'
@@ -80,7 +119,7 @@ function generateMarkdownReport(auditResult, outputPath) {
   lines.push('');
   lines.push('---');
   lines.push('');
-  lines.push('## 3. CÁC ĐIỂM NGHẼN NGHIÊM TRỌNG CẦN XỬ LÝ NGAY (CRITICAL BOTTLENECKS)');
+  lines.push('## 4. CÁC ĐIỂM NGHẼN NGHIÊM TRỌNG CẦN XỬ LÝ NGAY (CRITICAL BOTTLENECKS)');
   lines.push('');
 
   if (criticalIssues.length === 0) {
@@ -103,7 +142,7 @@ function generateMarkdownReport(auditResult, outputPath) {
   lines.push('');
   lines.push('---');
   lines.push('');
-  lines.push('## 4. CẢNH BÁO TỐI ƯU HÓA TRUNG HẠN (WARNING ISSUES)');
+  lines.push('## 5. CẢNH BÁO TỐI ƯU HÓA TRUNG HẠN (WARNING ISSUES)');
   lines.push('');
 
   if (warningIssues.length === 0) {
@@ -117,7 +156,7 @@ function generateMarkdownReport(auditResult, outputPath) {
   lines.push('');
   lines.push('---');
   lines.push('');
-  lines.push('## 5. DỰ BÁO LỢI ÍCH SAU TỐI ƯU (PROJECTED ROI & OPTIMIZATION GAINS)');
+  lines.push('## 6. DỰ BÁO LỢI ÍCH SAU TỐI ƯU (PROJECTED ROI & OPTIMIZATION GAINS)');
   lines.push('');
   lines.push('Khi thực thi toàn bộ các khuyến nghị trong tệp `recommendations.sql`:');
   lines.push('1. **Thời gian phản hồi truy vấn:** Dự kiến giảm **40% - 70%** cho các truy vấn thiếu Index.');
