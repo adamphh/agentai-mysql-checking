@@ -1,417 +1,228 @@
-<<<<<<< HEAD
-# MySQL Telegram Monitor Bot
+# MySQL & MariaDB Performance Audit & Diagnostics Engine
 
-Realtime monitoring chatbot for MySQL instances with Telegram integration. Monitor 3 MySQL instances (Local, Docker, AWS RDS), detect slow queries, resource bottlenecks, and receive instant alerts via Telegram.
-
-## Features
-
-✅ **Real-time Monitoring** of 3 MySQL instances  
-✅ **Slow Query Detection** - Identify queries > 30 seconds  
-✅ **Resource Monitoring** - Track CPU, memory, connections  
-✅ **Telegram 2-way Chat** - Interactive commands via Telegram  
-✅ **Smart Alerts** - Instant notifications with recommended actions  
-✅ **7-day History** - Automatic cleanup, file-based storage  
-✅ **User Authentication** - Whitelist + optional password  
-✅ **Linux Deployment** - Systemd service, PM2 compatible  
-
-## Quick Start
-
-### 1. Prerequisites
-
-- Node.js 16+ (v18 LTS recommended)
-- npm 8+
-- 3 MySQL 8.x instances accessible
-- Telegram bot token (create via @BotFather)
-- Your Telegram user ID (get from @userinfobot)
-
-### 2. Installation
-
-```bash
-# Clone or initialize project
-git clone <repo-url>
-cd mysql-telegram-monitor
-
-# Install dependencies
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your MySQL credentials and Telegram token
-nano .env
-```
-
-### 3. Start Monitoring
-
-```bash
-# Development mode (with auto-reload)
-npm run dev
-
-# Production mode
-npm start
-```
-
-### 4. Test in Telegram
-
-Send to your bot:
-```
-/start
-/status
-/slowqueries
-/help
-```
-
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [COMPLETED_STEPS.md](COMPLETED_STEPS.md) | Completion log & quick usage / testing guide |
-| [.github/copilot-instructions.md](.github/copilot-instructions.md) | AI agent instructions - architecture, patterns, conventions |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, components, data flows, error handling |
-| [SETUP.md](SETUP.md) | Installation, configuration, deployment guides |
-| [IMPLEMENTATION.md](IMPLEMENTATION.md) | Code patterns, examples, troubleshooting |
-
-## Project Structure
-
-```
-mysql-telegram-monitor/
-├── src/
-│   ├── config/
-│   │   ├── config.js              # Environment & global config
-│   │   └── mysql-connections.js   # 3 connection managers
-│   ├── services/
-│   │   ├── mysql-monitor.js       # Connection health
-│   │   ├── metrics-collector.js   # Query metrics collection
-│   │   ├── alert-detector.js      # Threshold checking
-│   │   └── history-manager.js     # 7-day file storage
-│   ├── telegram/
-│   │   ├── bot.js                 # Telegram bot init
-│   │   ├── handlers.js            # Command handlers
-│   │   ├── auth.js                # User authentication
-│   │   └── commands.js            # Command definitions
-│   ├── utils/
-│   │   ├── logger.js              # Winston logging
-│   │   └── helpers.js             # Utility functions
-│   └── index.js                   # Main entry point
-├── history/                       # 7-day rolling history (auto-generated)
-├── logs/                          # Application logs (auto-generated)
-├── .env.example                   # Configuration template
-├── package.json
-├── ARCHITECTURE.md                # System design
-├── SETUP.md                       # Deployment guide
-├── IMPLEMENTATION.md              # Code patterns
-└── README.md                      # This file
-```
-
-## Key Concepts
-
-### Monitoring Loop
-Every 30 seconds (configurable):
-1. **Collect** metrics from all 3 instances (SHOW PROCESSLIST, variables, etc)
-2. **Detect** alerts by comparing against thresholds
-3. **Store** metrics to history (JSON files, 7-day rolling)
-4. **Notify** via Telegram if alerts triggered
-
-### Alert Types
-- **LONG_QUERY** - Single query > 30 seconds
-- **HIGH_CONNECTIONS** - Connection usage > 80%
-- **SLOW_QUERY_BURST** - Multiple slow queries detected
-- **LOCK_DETECTED** - InnoDB locks or deadlocks
-- **CONNECTION_ERROR** - Instance unreachable
-
-### Metrics Tracked
-Per instance:
-- Running queries count
-- Longest query duration
-- Slow queries count (> 5 seconds)
-- Active connections / max connections
-- Uptime
-- Query per second (QPS)
-- InnoDB transactions & locks
-
-### Telegram Commands
-
-```
-/start          - Welcome & setup
-/status         - 📊 All metrics (all instances)
-/slowqueries    - ⏱️ Top slow queries
-/alerts         - 🚨 Recent alerts
-/instances      - 🔌 Instance connectivity
-/history docker 24    - 📈 Historical data (24 hours)
-/help           - Command list
-```
-
-## Configuration
-
-### Environment Variables (.env)
-
-```bash
-# MySQL 3 Instances
-MYSQL_LOCAL_HOST=localhost
-MYSQL_LOCAL_PORT=3306
-MYSQL_LOCAL_USER=monitor
-MYSQL_LOCAL_PASSWORD=***
-
-MYSQL_DOCKER_HOST=mysql-container
-MYSQL_DOCKER_PORT=3306
-MYSQL_DOCKER_USER=root
-MYSQL_DOCKER_PASSWORD=***
-
-MYSQL_AWS_HOST=db.xxx.rds.amazonaws.com
-MYSQL_AWS_PORT=3306
-MYSQL_AWS_USER=admin
-MYSQL_AWS_PASSWORD=***
-
-# Telegram
-TELEGRAM_BOT_TOKEN=1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh
-ALLOWED_USER_IDS=123456789,987654321
-TELEGRAM_PASSWORD=optional_password
-
-# Monitoring
-METRICS_INTERVAL=30000   # 30 seconds
-MONITORING_TIMEOUT=10000
-HISTORY_DAYS=7
-CLEANUP_HOUR=2           # 2 AM daily cleanup
-
-# Logging
-LOG_LEVEL=info
-LOG_FILE=./logs/app.log
-NODE_ENV=production
-```
-
-## Available Commands
-
-### Development
-```bash
-npm run dev              # Development with auto-reload
-npm start               # Production mode
-npm run test            # Run tests
-npm run lint            # ESLint check
-npm run logs            # View realtime logs
-npm run cleanup         # Manual history cleanup
-```
-
-### Deployment
-```bash
-# Linux with Systemd
-sudo systemctl start mysql-monitor
-sudo systemctl status mysql-monitor
-sudo journalctl -u mysql-monitor -f
-
-# Or with PM2
-pm2 start npm --name "mysql-monitor" -- start
-pm2 logs mysql-monitor
-pm2 restart mysql-monitor
-```
-
-## Alert Thresholds
-
-Default thresholds (configurable in `alert-detector.js`):
-
-| Alert | Threshold | Example |
-|-------|-----------|---------|
-| Long Query | > 30 seconds | Query running for 45 seconds |
-| High Connections | > 80% of max | 80 / 100 connections |
-| Slow Query Burst | > 10 queries | 15 queries > 5 seconds |
-| Lock Wait | > 10 seconds | InnoDB lock detected |
-| Memory Usage | > 85% | RAM usage high |
-
-## MySQL Setup
-
-### Create Monitor User (Recommended)
-
-```sql
--- On each MySQL instance
-CREATE USER 'monitor'@'%' IDENTIFIED BY 'secure_password';
-
--- Grant minimal required privileges
-GRANT SELECT ON *.* TO 'monitor'@'%';
-GRANT PROCESS ON *.* TO 'monitor'@'%';
-GRANT REPLICATION CLIENT ON *.* TO 'monitor'@'%';
-
-FLUSH PRIVILEGES;
-```
-
-**Privileges:**
-- `SELECT` - Read information_schema
-- `PROCESS` - View PROCESSLIST (running queries)
-- `REPLICATION CLIENT` - View replication status
-
-## History Storage
-
-Metrics stored as JSON files, 7-day rolling window:
-
-```
-history/
-├── metrics-2026-02-08.json   # Today's metrics
-├── metrics-2026-02-07.json   # Yesterday
-└── ... (up to 7 days)
-```
-
-**File Format:**
-```json
-{
-  "date": "2026-02-08",
-  "entries": [
-    {
-      "timestamp": 1707384000000,
-      "instance": "docker",
-      "metrics": {
-        "runningQueries": 5,
-        "connections": 45,
-        ...
-      }
-    }
-  ]
-}
-```
-
-**Auto-cleanup:** Daily at 2 AM (removes files > 7 days old)
-
-## Deployment to Linux
-
-### Option 1: Systemd Service (Recommended)
-
-```bash
-# 1. Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# 2. Create app directory
-sudo mkdir -p /opt/mysql-monitor
-sudo useradd -m mysql-monitor
-sudo chown mysql-monitor:mysql-monitor /opt/mysql-monitor
-
-# 3. Deploy code
-cd /opt/mysql-monitor
-git clone <repo-url> .
-npm install --production
-
-# 4. Configure
-cp .env.example .env
-nano .env  # Fill credentials
-
-# 5. Create systemd service
-sudo nano /etc/systemd/system/mysql-monitor.service
-
-# [Content from SETUP.md]
-
-# 6. Enable & start
-sudo systemctl daemon-reload
-sudo systemctl enable mysql-monitor
-sudo systemctl start mysql-monitor
-
-# 7. Check status
-sudo systemctl status mysql-monitor
-sudo journalctl -u mysql-monitor -f
-```
-
-### Option 2: PM2
-
-```bash
-sudo npm install -g pm2
-
-cd /opt/mysql-monitor
-pm2 start npm --name "mysql-monitor" -- start
-pm2 startup
-pm2 save
-
-pm2 logs mysql-monitor
-```
-
-## Troubleshooting
-
-### Cannot connect to MySQL
-```bash
-# Test connection
-mysql -h localhost -u monitor -p
-
-# Check .env credentials
-cat .env | grep MYSQL_LOCAL
-
-# View logs
-npm run logs
-```
-
-### Telegram bot not responding
-```bash
-# Verify token
-curl -s https://api.telegram.org/bot<TOKEN>/getMe
-
-# Check user ID in whitelist
-grep ALLOWED_USER_IDS .env
-
-# Restart bot
-npm run dev
-```
-
-### High memory usage
-```bash
-# Check history file size
-du -sh history/
-
-# Manual cleanup
-rm history/metrics-*.json
-
-# Or adjust interval
-METRICS_INTERVAL=60000  # 60 seconds
-```
-
-## Performance Notes
-
-- **Monitoring interval:** 30 seconds (configurable)
-- **History retention:** 7 days rolling window
-- **Memory usage:** In-memory cache for 1 hour only
-- **File I/O:** Daily writes only (not per metric)
-- **Telegram API:** Respects rate limiting, batches alerts
-
-## Monitoring Best Practices
-
-1. **Set appropriate thresholds** for your workload
-2. **Monitor closely first week** - adjust thresholds as needed
-3. **Review logs daily** - check for connection issues
-4. **Keep history files** - useful for trend analysis
-5. **Test alerts** - verify Telegram notifications work
-
-## Security
-
-- ✅ User ID whitelist required
-- ✅ Optional password for sensitive commands
-- ✅ No credentials in logs
-- ✅ Limited MySQL user privileges
-- ✅ Environment variables only (no hardcoded secrets)
-
-## Contributing
-
-To add new features:
-
-1. See [ARCHITECTURE.md](ARCHITECTURE.md) for system design
-2. Follow patterns in [IMPLEMENTATION.md](IMPLEMENTATION.md)
-3. Use conventions from [.github/copilot-instructions.md](.github/copilot-instructions.md)
-4. Test with: `npm run test`
-5. Lint with: `npm run lint`
-
-## License
-
-[Your License Here]
-
-## Support
-
-For issues or questions:
-1. Check [TROUBLESHOOTING section](#troubleshooting)
-2. Review [SETUP.md](SETUP.md) for configuration help
-3. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for code examples
-4. Contact your team lead or admin
+> **Enterprise-grade Database Health Check, Performance Bottleneck Audit & Optimization Engine**  
+> Tương thích toàn diện với MySQL 5.7, MySQL 8.0, MySQL 8.4+ LTS và MariaDB 10.x / 11.x.
 
 ---
 
-**Last Updated:** February 8, 2026  
-**Status:** Ready for development  
-**Version:** 1.0.0
+## 🌟 Tổng quan Dự án (Project Overview)
 
-For detailed architecture: [ARCHITECTURE.md](ARCHITECTURE.md)  
-For setup instructions: [SETUP.md](SETUP.md)  
-For code examples: [IMPLEMENTATION.md](IMPLEMENTATION.md)  
-For AI agent instructions: [.github/copilot-instructions.md](.github/copilot-instructions.md)
-=======
-# agentai-mysql-checking
->>>>>>> aad3cb96fb01bcc154a162a81ea7106dc20e50d6
+**DB Performance Audit Engine** là bộ công cụ chuyên sâu dành cho Database Administrators (DBA), Tech Leads, 
+và Backend Engineers nhằm quét, chẩn đoán, phát hiện toàn bộ các điểm nghẽn hiệu năng trên cơ sở dữ liệu MySQL/MariaDB.
+
+Công cụ tự động phân tích cơ sở dữ liệu trên **5 Trụ cột Hiệu năng Cốt lõi**, tính toán **Điểm Sức Khỏe (Health Score 0-100)** 
+và xuất báo cáo đa định dạng chuyên nghiệp phục vụ **báo cáo trực tiếp với Ban Quản lý/Sếp** cùng bộ mã lệnh khắc phục an toàn.
+
+---
+
+## 🏛️ Sơ đồ 5 Trụ cột Chẩn đoán (5 Diagnostic Pillars)
+
+### 1. Sơ đồ Mermaid (Mermaid Architecture Diagram)
+
+```mermaid
+graph TD
+    A[DB Performance Audit Engine] --> B[1. Schema & Index Pillar - 25%]
+    A --> C[2. Lock & Concurrency Pillar - 20%]
+    A --> D[3. Query & Workload Digest - 25%]
+    A --> E[4. Memory & I/O Engine - 15%]
+    A --> F[5. Configuration & my.cnf Tuner - 15%]
+
+    B --> B1[Index trùng lặp & dư thừa]
+    B --> B2[Index không sử dụng - Unused Indexes]
+    B --> B3[Foreign Key thiếu Index]
+    B --> B4[Bảng không có Primary Key]
+    B --> B5[Phân mảnh bảng data_free & Table Bloat]
+    B --> B6[Bảng phi-InnoDB MyISAM & Bão hòa Auto-Inc]
+
+    C --> C1[InnoDB Row Lock Waits & Contention]
+    C --> C2[Giao dịch active kéo dài >30s]
+    C --> C3[Bóc tách Deadlock từ INNODB STATUS]
+    C --> C4[Phân tầng Global Wait Events theo độ trễ]
+
+    D --> D1[Top Slow Queries theo Sum & Avg Latency]
+    D --> D2[Scan Efficiency ROWS_EXAMINED / ROWS_SENT]
+    D --> D3[Bão truy vấn không Index NO_INDEX_USED]
+    D --> D4[Temp Disk Tables & Filesort on Disk]
+
+    E --> E1[Buffer Pool Hit Ratio < 99%]
+    E --> E2[Dirty Page Ratio & Checkpoint Lag]
+    E --> E3[Redo Log Capacity & Flush Method O_DIRECT]
+    E --> E4[ACID Durability vs I/O Trade-off]
+
+    F --> F1[OOM Killer Risk Calculator Max RAM]
+    F --> F2[Tính toán innodb_buffer_pool_size theo RAM]
+    F --> F3[open_files_limit vs max_connections]
+    F --> F4[Binlog Retention Expiration Check]
+```
+
+### 2. Sơ đồ Khối ASCII (ASCII Architecture Blueprint)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    MySQL / MariaDB Performance Audit & Diagnostics Engine                        │
+└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                                 │
+ ┌──────────────────────┬────────────────────────┼────────────────────────┬──────────────────────┐
+ │                      │                        │                        │                      │
+ ▼                      ▼                        ▼                        ▼                      ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│ 1. SCHEMA & INDEX│   │ 2. LOCK & CONCUR │   │ 3. QUERY DIGEST  │   │ 4. MEMORY & I/O  │   │ 5. CONFIG TUNING │
+│   (Trọng số 25%) │   │   (Trọng số 20%) │   │   (Trọng số 25%) │   │   (Trọng số 15%) │   │   (Trọng số 15%) │
+├──────────────────┤   ├──────────────────┤   ├──────────────────┤   ├──────────────────┤   ├──────────────────┤
+│• Redundant Idx   │   │• Row Lock Waits  │   │• Top Slow Digest │   │• Buffer Pool Hit │   │• OOM Killer Risk │
+│• Unused Indexes  │   │• Long Trx (>30s) │   │• Scan Efficiency │   │• Dirty Page Rate │   │• RAM Sizing Recs │
+│• Missing FK Idx  │   │• Deadlock History│   │• No-Index Storms │   │• Redo Log Sizing │   │• Max Connections │
+│• Tables No PK    │   │• Wait Event Sums │   │• Full Table Scans│   │• O_DIRECT Flush  │   │• Open Files Limit│
+│• Table Bloat/Free│   │• Metadata Locks  │   │• Temp Disk Tables│   │• ACID vs IO Trade│   │• Binlog Retention│
+│• Auto-Inc Limit  │   │• Thread Saturation│  │• Filesort on Disk│   │• Cache Miss Rate │   │• Anti-patterns   │
+└──────────────────┘   └──────────────────┘   └──────────────────┘   └──────────────────┘   └──────────────────┘
+                                                 │
+                                                 ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                               MULTI-FORMAT DELIVERABLES PIPELINE                                 │
+│  1. Standalone HTML Dashboard (Offline, interactive, Health Score gauge, visual evidence)        │
+│  2. Executive Summary Markdown (Tóm tắt hiện trạng, rủi ro và chiến lược tối ưu cho Sếp)       │
+│  3. fix-recommendations.sql (Mã lệnh Online DDL ALGORITHM=INPLACE, 4 Phase thực thi & Rollback)  │
+│  4. Structured JSON Report (Dữ liệu thô phục vụ tích hợp CI/CD Pipeline)                        │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛡️ Nguyên tắc An toàn Tuyệt đối trên Production (Safety Guardrails)
+
+- **100% Read-Only Session:** Ngay khi kết nối, session được khóa bằng `SET SESSION TRANSACTION READ ONLY`.
+- **Dual-Layer Timeout Protection:** Bọc tất cả câu lệnh SELECT bằng Optimizer Hint `/*+ MAX_EXECUTION_TIME(5000) */` 
+  và thiết lập Node.js Socket Timeout 5000ms để triệt tiêu nguy cơ treo database khi đang chịu tải.
+- **Tắt Auto Stats Update trên MySQL 5.7:** Tự động gán `innodb_stats_on_metadata = 0` tránh gây I/O disk đột ngột khi đọc `information_schema`.
+- **Cơ chế Phân tầng Linh hoạt (3-Tier Fallback):** Tự động chuyển đổi giữa `sys schema` -> `performance_schema` -> `information_schema` + `SHOW GLOBAL STATUS` nếu database bị hạn chế quyền.
+- **Cách ly Lỗi Từng phần (Fault Isolation):** Mỗi Analyzer độc lập trong `try-catch`, đảm bảo khi 1 bảng bị lỗi thì các module còn lại vẫn hoàn thành.
+
+---
+
+## 🚀 Cài đặt & Hướng dẫn Sử dụng (Quick Start)
+
+### 1. Yêu cầu Môi trường
+- Node.js >= 16.0.0 (Khuyên dùng v18 hoặc v20 LTS)
+- Quyền truy cập MySQL 5.7, 8.0, 8.4+ hoặc MariaDB 10.x/11.x (User chỉ cần quyền `SELECT` và `PROCESS`).
+
+### 2. Cài đặt Dependencies
+```bash
+git clone https://github.com/adamphh/agentai-mysql-checking.git
+cd agentai-mysql-checking
+npm install
+```
+
+### 3. Cấu hình Môi trường (.env)
+```bash
+cp .env.example .env
+# Chỉnh sửa thông tin kết nối DB trong .env
+```
+
+### 4. Chạy Kiểm định & Xuất Báo cáo (Run Audit)
+
+#### Chạy qua npm script (sử dụng cấu hình từ `.env`):
+```bash
+npm run audit
+```
+
+#### Chạy trực tiếp qua CLI với tham số tùy chọn:
+```bash
+node bin/db-audit.js --host=127.0.0.1 --port=3306 --user=root --password=secret --database=shop_db --output-dir=./reports
+```
+
+#### Các tùy chọn dòng lệnh (CLI Options):
+```
+Options:
+  -h, --host <host>          Địa chỉ máy chủ MySQL/MariaDB (Mặc định: 127.0.0.1)
+  -P, --port <port>          Cổng kết nối (Mặc định: 3306)
+  -u, --user <user>          Tên tài khoản cơ sở dữ liệu (Mặc định: root)
+  -p, --password <password>  Mật khẩu truy cập
+  -d, --database <database>  Tên cơ sở dữ liệu cần kiểm tra chi tiết
+  -o, --output-dir <dir>     Thư mục xuất báo cáo (Mặc định: ./reports)
+  -f, --format <formats>     Định dạng xuất: all, html, md, sql, json (Mặc định: all)
+  -q, --quick                Chế độ quét nhanh (bỏ qua deep table fragmentation)
+  --help                     Hiển thị hướng dẫn
+```
+
+---
+
+## 📊 Cấu trúc Báo cáo Đầu ra (Output Deliverables)
+
+Sau khi hoàn tất quá trình quét, thư mục `./reports` sẽ tự động sinh 4 tệp:
+
+1. **`audit-report.html` (Interactive Dashboard):**
+   - Vòng tròn hiển thị **Health Score (0-100)** trực quan.
+   - Thống kê thẻ số lượng lỗi: Critical, Warning, Info.
+   - Bộ lọc tìm kiếm nhanh các vấn đề theo Trụ cột hoặc Mức độ nghiêm trọng.
+   - Chi tiết bằng chứng kỹ thuật (SQL query, bảng liên quan, thời gian trễ).
+   - Nút Copy mã lệnh khắc phục nhanh một chạm.
+2. **`EXECUTIVE_SUMMARY.md` (Báo cáo dành cho Ban Quản lý/Sếp):**
+   - Đánh giá tổng quan hiện trạng và rủi ro vận hành.
+   - Bảng phân tích 5 trụ cột và mức độ ảnh hưởng kinh doanh.
+   - Lộ trình tối ưu hóa và dự báo ROI (tiết kiệm bao nhiêu % CPU, RAM, thời gian phản hồi).
+3. **`recommendations.sql` (Mã lệnh khắc phục an toàn):**
+   - Phân chia 4 Phase rõ ràng:
+     - `Phase 1: Online DDL` (Tạo Index với `ALGORITHM=INPLACE, LOCK=NONE`).
+     - `Phase 2: Maintenance Window` (Xóa Index thừa, gộp phân mảnh, Partition).
+     - `Phase 3: Dynamic Parameter Tuning` (`SET GLOBAL...`).
+     - `Phase 4: Persistent Config` (Cập nhật file cấu hình `my.cnf`).
+   - Cảnh báo bảng lớn (>10M dòng) kèm gợi ý chạy qua `pt-online-schema-change` / `gh-ost`.
+   - Kèm script Rollback cho từng lệnh.
+4. **`audit-report.json` (Structured Raw Data):**
+   - Chứa toàn bộ số liệu đo lường thô, phù hợp tích hợp vào CI/CD pipeline hoặc hệ thống giám sát nội bộ.
+
+---
+
+## 🧪 Chạy Kiểm thử Tự động (Automated Testing)
+
+```bash
+# Chạy toàn bộ Unit Test suite
+npm test
+
+# Chạy test và xuất báo cáo độ bao phủ mã nguồn
+npm run test:coverage
+```
+
+---
+
+## 📂 Cấu trúc Mã nguồn (Project Directory Layout)
+
+```
+agentai-mysql-checking/
+├── bin/
+│   └── db-audit.js              # CLI executable wrapper
+├── src/
+│   ├── core/
+│   │   ├── database.js          # Connection manager & safety pool
+│   │   ├── capability-probe.js  # Version & engine capability detector
+│   │   ├── version-adapter.js   # Cross-version SQL compatibility layer
+│   │   ├── query-runner.js      # Dual-timeout & read-only executor
+│   │   └── scorer.js            # Weighted 5-Pillar Health Scorer
+│   ├── analyzers/
+│   │   ├── schema-index.js      # Pillar 1: Schema, indexes, bloat, PK/FK
+│   │   ├── lock-wait.js         # Pillar 2: Locks, deadlocks, long trx, waits
+│   │   ├── query-digest.js      # Pillar 3: Slow queries, scans, efficiency
+│   │   ├── memory-io.js         # Pillar 4: Buffer pool, redo, cache, I/O
+│   │   ├── config-tuner.js      # Pillar 5: OOM calculator, my.cnf tuning
+│   │   └── index.js             # Master analyzer runner
+│   ├── reporters/
+│   │   ├── html-reporter.js     # Standalone HTML dashboard generator
+│   │   ├── markdown-reporter.js # Executive summary markdown generator
+│   │   ├── sql-fix-reporter.js  # Online DDL & phased SQL fix generator
+│   │   └── json-reporter.js     # Machine-readable JSON exporter
+│   ├── cli.js                   # CLI argument parser & orchestration
+│   └── index.js                 # Programmatic Node.js API entry point
+├── tests/
+│   ├── unit/                    # Unit tests for core, analyzers, reporters
+│   └── mocks/                   # Mock database fixtures & state
+├── Plans/                       # Implementation plans & architectural blueprints
+├── package.json
+└── README.md
+```
+
+---
+
+## 📜 Giấy phép (License)
+
+Phát hành dưới giấy phép [MIT License](LICENSE).

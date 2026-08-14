@@ -11,7 +11,7 @@ services:
       MYSQL_USER: monitor
       MYSQL_PASSWORD: monitor_password
     ports:
-      - "3306:3306"
+      - "3306:3308"
     volumes:
       - mysql_local_data:/var/lib/mysql
       - ./scripts/init-local.sql:/docker-entrypoint-initdb.d/init.sql

@@ -1,43 +1,46 @@
 {
-    "name": "mysql-telegram-monitor",
-    "version": "1.0.0",
-    "description": "Realtime MySQL monitoring bot with Telegram integration",
-    "main": "src/index.js",
-    "scripts": {
-        "start": "node src/index.js",
-        "dev": "nodemon src/index.js",
-        "test": "jest --coverage",
-        "test:connections": "node scripts/test-connections.js",
-        "test:metrics": "node scripts/test-metrics.js",
-        "lint": "eslint src --fix",
-        "logs": "tail -f logs/app.log",
-        "cleanup": "node scripts/cleanup-history.js"
-    },
-    "keywords": [
-        "mysql",
-        "monitoring",
-        "telegram",
-        "bot",
-        "nodejs"
-    ],
-    "author": "Your Name",
-    "license": "MIT",
-    "engines": {
-        "node": ">=16.0.0",
-        "npm": ">=8.0.0"
-    },
-    "dependencies": {
-        "dotenv": "^16.3.1",
-        "mysql2": "^3.6.5",
-        "telegraf": "^4.14.1",
-        "winston": "^3.11.0",
-        "node-cron": "^3.0.2",
-        "moment": "^2.29.4"
-    },
-    "devDependencies": {
-        "nodemon": "^3.0.2",
-        "eslint": "^8.54.0",
-        "jest": "^29.7.0",
-        "jest-cli": "^29.7.0"
-    }
+  "name": "db-performance-audit",
+  "version": "1.0.0",
+  "description": "Enterprise MySQL & MariaDB Performance Audit, Health Check and Diagnostics Engine",
+  "main": "src/index.js",
+  "bin": {
+    "db-audit": "./bin/db-audit.js"
+  },
+  "scripts": {
+    "audit": "node bin/db-audit.js",
+    "start": "node bin/db-audit.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --fix"
+  },
+  "keywords": [
+    "mysql",
+    "mariadb",
+    "database-audit",
+    "performance-tuning",
+    "health-check",
+    "dba",
+    "index-analysis",
+    "slow-query"
+  ],
+  "author": "Antigravity Database Optimization Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "moment": "^2.29.4",
+    "mysql2": "^3.6.5",
+    "node-cron": "^3.0.2",
+    "telegraf": "^4.14.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "jest-cli": "^29.7.0",
+    "nodemon": "^3.0.2"
+  }
 }
