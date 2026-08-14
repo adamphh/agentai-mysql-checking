@@ -549,6 +549,10 @@ function generateHtmlReport(auditResult, outputPath) {
             🎉 Tuyệt vời! Không phát hiện điểm nghẽn hiệu năng nào.
           </div>
         ` : allIssues.map((issue, idx) => renderIssueCard(issue, idx)).join('\n')}
+        <div id="noFilterIssuesMessage" style="display: none; text-align: center;
+          color: var(--text-muted); padding: 30px;" class="card">
+          ℹ️ Không có vấn đề nào thuộc phân loại này.
+        </div>
       </div>
     </div>
 
@@ -1047,36 +1051,63 @@ function generateHtmlReport(auditResult, outputPath) {
     function filterIssues(btn, sev) {
       document.querySelectorAll('.controls-bar .filter-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
+      let visibleCount = 0;
+      const targetSev = String(sev || 'ALL').toUpperCase();
       document.querySelectorAll('#tab-overview .issue-card').forEach(c => {
-        if (sev === 'ALL' || c.dataset.severity === sev) {
+        const cardSev = String(c.dataset.severity || '').toUpperCase();
+        if (targetSev === 'ALL' || cardSev === targetSev) {
           c.style.display = 'block';
+          visibleCount++;
         } else {
           c.style.display = 'none';
         }
       });
+      const emptyBox = document.getElementById('noFilterIssuesMessage');
+      if (emptyBox) {
+        emptyBox.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
     }
 
     function filterBySeverityDirect(sev) {
-      const targetBtn = document.getElementById('btn-filter-' + sev.toLowerCase());
+      const targetBtn = document.getElementById('btn-filter-' + String(sev).toLowerCase());
       filterIssues(targetBtn, sev);
     }
 
     function filterByPillar(pillarKey) {
+      document.querySelectorAll('.controls-bar .filter-btn').forEach(b => b.classList.remove('active'));
+      let visibleCount = 0;
+      const targetKey = String(pillarKey || '').toLowerCase();
       document.querySelectorAll('#tab-overview .issue-card').forEach(c => {
-        if (c.dataset.pillar === pillarKey) {
+        const cardPillar = String(c.dataset.pillar || '').toLowerCase();
+        if (!targetKey || cardPillar === targetKey) {
           c.style.display = 'block';
+          visibleCount++;
         } else {
           c.style.display = 'none';
         }
       });
+      const emptyBox = document.getElementById('noFilterIssuesMessage');
+      if (emptyBox) {
+        emptyBox.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
     }
 
     function searchIssues(query) {
-      const term = query.toLowerCase();
+      const term = String(query || '').toLowerCase();
+      let visibleCount = 0;
       document.querySelectorAll('#tab-overview .issue-card').forEach(c => {
         const text = c.innerText.toLowerCase();
-        c.style.display = text.includes(term) ? 'block' : 'none';
+        if (text.includes(term)) {
+          c.style.display = 'block';
+          visibleCount++;
+        } else {
+          c.style.display = 'none';
+        }
       });
+      const emptyBox = document.getElementById('noFilterIssuesMessage');
+      if (emptyBox) {
+        emptyBox.style.display = visibleCount === 0 ? 'block' : 'none';
+      }
     }
 
     function copySql(id) {
